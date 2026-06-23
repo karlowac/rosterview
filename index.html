@@ -351,6 +351,7 @@ function renderSheet(ws) {
           : 80;
     w = Math.max(40, Math.min(w, 300));
     if (c === NAMES_COL_0) w = NAME_COL_W;
+    if (c === 4) w = 20;
     colW.push(w);
   }
 
