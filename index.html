@@ -1,0 +1,675 @@
+<!DOCTYPE html><!-- v5 -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0d1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="RosterView">
+<title>RosterView</title>
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #0d1117;
+  --surface:  #161b22;
+  --surface2: #21262d;
+  --border:   #30363d;
+  --accent:   #58a6ff;
+  --accent2:  #3fb950;
+  --text:     #e6edf3;
+  --text-dim: #8b949e;
+  --danger:   #f85149;
+  --radius:   6px;
+  --mono:     'IBM Plex Mono', monospace;
+  --sans:     'IBM Plex Sans', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--sans); }
+
+/* ── TOP BAR ─────────────────────────────────────────── */
+#topbar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 12px; height: 48px;
+  background: var(--bg); border-bottom: 1px solid var(--border);
+  flex-shrink: 0; overflow-x: auto; overflow-y: hidden;
+}
+#topbar::-webkit-scrollbar { height: 0; }
+#logo { font-family: var(--mono); font-size: 0.88rem; font-weight: 600; color: var(--accent); white-space: nowrap; flex-shrink: 0; }
+.sep { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
+.tb-label { font-size: 0.62rem; font-weight: 600; color: var(--text-dim); white-space: nowrap; flex-shrink: 0; letter-spacing: 0.05em; text-transform: uppercase; }
+.tb-select { font-family: var(--mono); font-size: 0.72rem; background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); padding: 4px 8px; cursor: pointer; flex-shrink: 0; max-width: 160px; }
+.tb-select:focus { outline: none; border-color: var(--accent); }
+.tb-input { font-family: var(--mono); font-size: 0.72rem; background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); padding: 4px 8px; width: 140px; flex-shrink: 0; transition: border-color 0.15s; }
+.tb-input:focus { outline: none; border-color: var(--accent2); }
+.tb-input::placeholder { color: var(--text-dim); }
+.tb-input.active { border-color: var(--accent2); }
+.tb-btn { font-family: var(--sans); font-size: 0.68rem; font-weight: 600; background: transparent; color: var(--accent); border: 1px solid var(--border); border-radius: var(--radius); padding: 4px 10px; cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: background 0.15s, border-color 0.15s; }
+.tb-btn:hover { background: var(--surface2); border-color: var(--accent); }
+#status-text { font-family: var(--mono); font-size: 0.62rem; color: var(--text-dim); white-space: nowrap; flex-shrink: 0; margin-left: auto; }
+
+/* ── MATCH PANEL ─────────────────────────────────────── */
+#match-panel { display: none; align-items: center; gap: 8px; padding: 4px 12px; background: var(--surface); border-bottom: 1px solid var(--border); font-family: var(--mono); font-size: 0.7rem; color: var(--text-dim); flex-shrink: 0; }
+#match-panel.visible { display: flex; }
+#match-list { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
+.match-chip { background: var(--surface2); border: 1px solid var(--accent2); border-radius: 4px; padding: 2px 8px; color: var(--accent2); font-size: 0.68rem; cursor: pointer; transition: background 0.12s; white-space: nowrap; }
+.match-chip:hover, .match-chip.active { background: var(--accent2); color: var(--bg); }
+#match-label { color: var(--text-dim); white-space: nowrap; flex-shrink: 0; }
+
+/* ── FOUR-PANE SPREADSHEET LAYOUT ────────────────────── */
+/*
+  Layout (inside #grid-outer):
+
+  [ TL: frozen rows+cols ] [ TR: frozen rows only    ]
+  [ BL: frozen cols only  ] [ BR: main scroll area   ]
+
+  TL and TR share a horizontal strip at the top (frozen rows).
+  TL and BL share a vertical strip on the left (frozen cols).
+  BR is the only pane that scrolls freely.
+  Scrolling BR syncs TR (horizontal) and BL (vertical).
+*/
+
+#grid-outer {
+  flex: 1;
+  display: grid;
+  /* column sizes set by JS once col widths are known */
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto 1fr;
+  overflow: hidden;
+  position: relative;
+  background: #ffffff;
+}
+
+/* Each pane is a scroll container with overflow hidden (except BR) */
+#pane-tl { grid-column:1; grid-row:1; overflow: hidden; }
+#pane-tr { grid-column:2; grid-row:1; overflow: hidden; scrollbar-gutter: stable; }
+#pane-bl { grid-column:1; grid-row:2; overflow: hidden; }
+#pane-br { grid-column:2; grid-row:2; overflow: auto; scrollbar-gutter: stable; }
+
+/* All pane tables share the same cell style */
+.pane-table {
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: #1a1a1a;
+  white-space: nowrap;
+  table-layout: fixed;
+}
+.pane-table td {
+  border: 1px solid #c8c8c8;
+  padding: 3px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  height: 22px;
+  line-height: 22px;
+  vertical-align: middle;
+  background-color: #ffffff;
+}
+
+/* Header cells (row numbers + col letters) */
+.pane-table td.hdr {
+  background-color: #f0f0f0 !important;
+  color: #555 !important;
+  font-weight: 600;
+  text-align: center;
+  font-size: 0.65rem;
+  border-color: #b0b0b0;
+  user-select: none;
+}
+
+/* Highlighted row */
+.pane-table tr.highlighted td {
+  background-color: #e6ffed !important;
+  outline: 2px solid var(--accent2);
+  outline-offset: -1px;
+}
+
+/* ── OVERLAY ─────────────────────────────────────────── */
+#overlay {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 14px;
+  background: rgba(255,255,255,0.92); z-index: 20;
+}
+#overlay.hidden { display: none; }
+.spinner { width: 36px; height: 36px; border: 3px solid #ddd; border-top-color: var(--accent); border-radius: 50%; animation: spin 0.75s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.overlay-msg { font-family: var(--mono); font-size: 0.8rem; color: #555; text-align: center; max-width: 300px; line-height: 1.6; }
+.overlay-msg.err { color: var(--danger); }
+
+/* ── STATUS BAR ──────────────────────────────────────── */
+#statusbar { height: 24px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; background: var(--bg); border-top: 1px solid var(--border); flex-shrink: 0; font-family: var(--mono); font-size: 0.62rem; color: var(--text-dim); }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f0f0f0; }
+::-webkit-scrollbar-thumb { background: #bbb; border-radius: 3px; }
+</style>
+</head>
+
+<body style="display:flex;flex-direction:column;height:100%">
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <div id="logo">RosterView</div>
+  <div class="sep"></div>
+  <span class="tb-label">Sheet</span>
+  <select id="sheet-sel" class="tb-select"></select>
+  <div class="sep"></div>
+  <span class="tb-label">Find</span>
+  <input id="name-input" class="tb-input" type="search" placeholder="Type a name…" autocomplete="off" list="name-list">
+  <datalist id="name-list"></datalist>
+  <button id="prev-btn" class="tb-btn" title="Previous match">▲</button>
+  <button id="next-btn" class="tb-btn" title="Next match">▼</button>
+  <button id="clear-btn" class="tb-btn" title="Clear">✕</button>
+  <div class="sep"></div>
+  <button id="refresh-btn" class="tb-btn">⟳ Refresh</button>
+  <span id="status-text">—</span>
+</div>
+
+<!-- MATCH CHIPS -->
+<div id="match-panel">
+  <span id="match-label">Matches:</span>
+  <div id="match-list"></div>
+</div>
+
+<!-- FOUR-PANE GRID -->
+<div id="grid-outer">
+  <div id="overlay">
+    <div class="spinner"></div>
+    <div class="overlay-msg" id="overlay-msg">Loading roster…</div>
+  </div>
+  <!-- TL: frozen rows + frozen cols -->
+  <div id="pane-tl"><table class="pane-table" id="tbl-tl"><tbody></tbody></table></div>
+  <!-- TR: frozen rows only -->
+  <div id="pane-tr"><table class="pane-table" id="tbl-tr"><tbody></tbody></table></div>
+  <!-- BL: frozen cols only -->
+  <div id="pane-bl"><table class="pane-table" id="tbl-bl"><tbody></tbody></table></div>
+  <!-- BR: main scroll area -->
+  <div id="pane-br"><table class="pane-table" id="tbl-br"><tbody></tbody></table></div>
+</div>
+
+<!-- STATUS BAR -->
+<div id="statusbar">
+  <span id="left-status">—</span>
+  <span id="right-status">—</span>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+// ════════════════════════════════════════════════════
+//  CONFIGURATION
+// ════════════════════════════════════════════════════
+const FILE_ID       = '1K1G_hqrCbaaYdpz64auiiZTBSnmfKm7u';
+const HIDDEN_SHEETS = ['_PROCESS_LOG'];
+const NAMES_ROW     = 15;   // 1-based row where names start
+const NAMES_COL     = 'D';  // column letter with person names
+const FIRST_ROW     = 11;   // skip rows above this (1-based, so rows 1-10 hidden)
+const MAX_ROW       = 40;   // rows beyond this are hidden (1-based)
+const SKIP_COLS     = 2;    // hide this many columns from the left (A and B)
+const FROZEN_COLS   = 2;    // freeze columns C–D (was A–D; A&B now hidden)
+const FROZEN_ROWS   = 3;    // first 3 visible rows frozen (was 13; rows 1-10 hidden, so rows 11-13)
+const NAME_COL_W    = 50;  // forced width (px) for names column
+const ROW_HDR_W     = 36;   // width of the row-number header column
+// ════════════════════════════════════════════════════
+
+const FETCH_URL   = `https://docs.google.com/spreadsheets/d/${FILE_ID}/export?format=xlsx`;
+const NAMES_COL_0 = NAMES_COL.toUpperCase().charCodeAt(0) - 65; // 0-based absolute col index
+const FIRST_ROW_0 = FIRST_ROW - 1; // 0-based
+
+// ── State ─────────────────────────────────────────────
+let sheetMeta   = [];
+let currentIdx  = 0;
+let matches     = [];
+let activeMatch = -1;
+
+// ── DOM ───────────────────────────────────────────────
+const sheetSel   = document.getElementById('sheet-sel');
+const nameInput  = document.getElementById('name-input');
+const nameList   = document.getElementById('name-list');
+const prevBtn    = document.getElementById('prev-btn');
+const nextBtn    = document.getElementById('next-btn');
+const clearBtn   = document.getElementById('clear-btn');
+const refreshBtn = document.getElementById('refresh-btn');
+const statusText = document.getElementById('status-text');
+const matchPanel = document.getElementById('match-panel');
+const matchList  = document.getElementById('match-list');
+const matchLabel = document.getElementById('match-label');
+const overlay    = document.getElementById('overlay');
+const overlayMsg = document.getElementById('overlay-msg');
+const leftStatus = document.getElementById('left-status');
+const rightStatus= document.getElementById('right-status');
+const gridOuter  = document.getElementById('grid-outer');
+const paneTL     = document.getElementById('pane-tl');
+const paneTR     = document.getElementById('pane-tr');
+const paneBL     = document.getElementById('pane-bl');
+const paneBR     = document.getElementById('pane-br');
+
+function showOverlay(msg, isErr = false) {
+  overlay.classList.remove('hidden');
+  overlayMsg.textContent = msg;
+  overlayMsg.className = 'overlay-msg' + (isErr ? ' err' : '');
+}
+function hideOverlay() { overlay.classList.add('hidden'); }
+
+// ── Sync scroll across panes ──────────────────────────
+// BR is the master scroll area. When it scrolls:
+//   - TR follows horizontally
+//   - BL follows vertically
+paneBR.addEventListener('scroll', () => {
+  paneTR.scrollLeft = paneBR.scrollLeft;
+  paneBL.scrollTop  = paneBR.scrollTop;
+}, { passive: true });
+
+// ── Color helpers ─────────────────────────────────────
+function argbToRgba(argb) {
+  if (!argb || argb.length < 6) return null;
+  const hex = argb.length === 6 ? 'FF' + argb : argb;
+  const a = parseInt(hex.slice(0,2), 16) / 255;
+  const r = parseInt(hex.slice(2,4), 16);
+  const g = parseInt(hex.slice(4,6), 16);
+  const b = parseInt(hex.slice(6,8), 16);
+  if (a < 0.05) return null;
+  if (r > 253 && g > 253 && b > 253) return null;
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+function applyStyle(td, cell) {
+  if (!cell || !cell.s) return;
+  const s = cell.s;
+  const fgColor = s.fgColor || (s.fill && s.fill.fgColor);
+  if (fgColor && fgColor.rgb) {
+    const col = argbToRgba(fgColor.rgb);
+    if (col) td.style.backgroundColor = col;
+  }
+  if (s.bold || (s.font && s.font.bold)) td.style.fontWeight = 'bold';
+  const fontColor = s.color || (s.font && s.font.color);
+  if (fontColor && fontColor.rgb) {
+    const col = argbToRgba(fontColor.rgb);
+    if (col) td.style.color = col;
+  }
+  const align = s.alignment && s.alignment.horizontal;
+  if (align === 'center') td.style.textAlign = 'center';
+  else if (align === 'right') td.style.textAlign = 'right';
+}
+
+// ── Column letter helper ───────────────────────────────
+function colLetter(c) {
+  let s = ''; c++;
+  while (c > 0) { s = String.fromCharCode(65 + (c-1) % 26) + s; c = Math.floor((c-1)/26); }
+  return s;
+}
+
+// ── Build a single td ─────────────────────────────────
+function makeTd(content, w, isHdr, cell) {
+  const td = document.createElement('td');
+  // Width is enforced by <colgroup> via table-layout:fixed.
+  // Do NOT set inline width — it fights the colgroup and causes pane mismatches.
+  if (isHdr) {
+    td.className = 'hdr';
+    td.textContent = content;
+  } else {
+    if (cell) {
+      td.textContent = cell.w !== undefined ? cell.w : (cell.v != null ? String(cell.v) : '');
+      applyStyle(td, cell);
+    }
+  }
+  return td;
+}
+
+// ── Render the four-pane spreadsheet ──────────────────
+function renderSheet(ws) {
+  // Clear all panes (tbody contents only; colgroup rebuilt below)
+  ['tbl-tl','tbl-tr','tbl-bl','tbl-br'].forEach(id => {
+    const tbl = document.getElementById(id);
+    tbl.querySelector('tbody').innerHTML = '';
+    const cg = tbl.querySelector('colgroup');
+    if (cg) cg.remove();
+  });
+
+  if (!ws || !ws['!ref']) return;
+
+  const range    = XLSX.utils.decode_range(ws['!ref']);
+  // Visible range: skip first SKIP_COLS columns and first FIRST_ROW_0 rows
+  const colStart = SKIP_COLS;
+  const colEnd   = range.e.c + 1;          // exclusive
+  const rowStart = FIRST_ROW_0;
+  const rowEnd   = Math.min(MAX_ROW, range.e.r + 1); // exclusive
+
+  const dataCols = colEnd - colStart;       // number of visible columns
+  const dataRows = rowEnd - rowStart;       // number of visible rows
+
+  // ── Column widths (only for visible columns) ───────
+  const wsCols    = ws['!cols'] || [];
+  const colW      = [];
+  for (let ci = 0; ci < dataCols; ci++) {
+    const c = ci + colStart; // absolute col index
+    let w = wsCols[c] && wsCols[c].wpx ? wsCols[c].wpx
+          : wsCols[c] && wsCols[c].wch ? Math.round(wsCols[c].wch * 7)
+          : 80;
+    w = Math.max(40, Math.min(w, 300));
+    if (c === NAMES_COL_0) w = NAME_COL_W;
+    colW.push(w);
+  }
+
+  // ── Merged cells (using absolute row/col indices) ─
+  const merges    = ws['!merges'] || [];
+  const mergeMap  = {};
+  const skipCells = new Set();
+  merges.forEach(m => {
+    mergeMap[`${m.s.r},${m.s.c}`] = { rs: m.e.r - m.s.r + 1, cs: m.e.c - m.s.c + 1 };
+    for (let r = m.s.r; r <= m.e.r; r++)
+      for (let c = m.s.c; c <= m.e.c; c++)
+        if (r !== m.s.r || c !== m.s.c) skipCells.add(`${r},${c}`);
+  });
+
+  // ── Set grid column sizes ──────────────────────────
+  const leftW = ROW_HDR_W + colW.slice(0, FROZEN_COLS).reduce((a,b) => a+b, 0);
+  gridOuter.style.gridTemplateColumns = `${leftW}px 1fr`;
+  gridOuter.style.gridTemplateRows    = `auto 1fr`; // will be corrected after measuring
+
+  // ── Inject <colgroup> into each pane for exact widths ─
+  // table-layout:fixed only enforces widths reliably when colgroups are present.
+  // Without them each pane recalculates independently → width mismatch.
+  function setColgroup(tableId, widths) {
+    const tbl = document.getElementById(tableId);
+    // Remove old colgroup if present
+    const oldCg = tbl.querySelector('colgroup');
+    if (oldCg) oldCg.remove();
+    const cg = document.createElement('colgroup');
+    widths.forEach(w => {
+      const col = document.createElement('col');
+      col.setAttribute('width', String(w));
+      col.style.width = w + 'px';
+      cg.appendChild(col);
+    });
+    // Must insert before tbody, not prepend (Firefox requires correct table structure)
+    const tbody = tbl.querySelector('tbody');
+    tbl.insertBefore(cg, tbody);
+  }
+
+  // Left panes (TL, BL): row-num header col + frozen data cols
+  const leftColWidths  = [ROW_HDR_W, ...colW.slice(0, FROZEN_COLS)];
+  const rightColWidths = colW.slice(FROZEN_COLS);
+
+  const leftTotalW  = leftColWidths.reduce((a,b) => a+b, 0);
+  const rightTotalW = rightColWidths.reduce((a,b) => a+b, 0);
+
+  // Set explicit table widths so browser cannot redistribute fractional pixels
+  // across columns when zoomed or window is resized — this prevents drift.
+  ['tbl-tl','tbl-bl'].forEach(id => {
+    const t = document.getElementById(id);
+    t.style.width = leftTotalW + 'px';
+    t.style.minWidth = leftTotalW + 'px';
+  });
+  ['tbl-tr','tbl-br'].forEach(id => {
+    const t = document.getElementById(id);
+    t.style.width = rightTotalW + 'px';
+    t.style.minWidth = rightTotalW + 'px';
+  });
+
+  setColgroup('tbl-tl', leftColWidths);
+  setColgroup('tbl-bl', leftColWidths);
+  setColgroup('tbl-tr', rightColWidths);
+  setColgroup('tbl-br', rightColWidths);
+
+  console.log('leftColWidths:', leftColWidths);
+  console.log('rightColWidths (first 10):', rightColWidths.slice(0,10));
+
+  // ── Helpers ────────────────────────────────────────
+  const tbTL = document.getElementById('tbl-tl').querySelector('tbody');
+  const tbTR = document.getElementById('tbl-tr').querySelector('tbody');
+  const tbBL = document.getElementById('tbl-bl').querySelector('tbody');
+  const tbBR = document.getElementById('tbl-br').querySelector('tbody');
+
+  // visRow = 0-based index within visible rows (null for header row)
+  function addRow(tbodyL, tbodyR, visRow, isHdrRow) {
+    const trL   = document.createElement('tr');
+    const trR   = document.createElement('tr');
+    const absRow = isHdrRow ? null : visRow + rowStart; // absolute row in worksheet
+
+    if (!isHdrRow) {
+      trL.dataset.row = visRow;
+      trR.dataset.row = visRow;
+    }
+
+    // Row-number header cell (shows real Excel row number)
+    trL.appendChild(makeTd(isHdrRow ? '' : (absRow + 1), ROW_HDR_W, true, null));
+
+    // Left pane: frozen visible columns (ci = visible col index, absCol = absolute)
+    if (isHdrRow) {
+      for (let ci = 0; ci < FROZEN_COLS && ci < dataCols; ci++) {
+        const absCol = ci + colStart;
+        trL.appendChild(makeTd(colLetter(absCol), colW[ci], true, null));
+      }
+    } else {
+      for (let ci = 0; ci < FROZEN_COLS && ci < dataCols; ci++) {
+        const absCol = ci + colStart;
+        if (skipCells.has(`${absRow},${absCol}`)) continue;
+        const cell = ws[XLSX.utils.encode_cell({ r: absRow, c: absCol })];
+        const td   = makeTd(null, colW[ci], false, cell);
+        const mk   = `${absRow},${absCol}`;
+        if (mergeMap[mk]) { td.rowSpan = mergeMap[mk].rs; td.colSpan = mergeMap[mk].cs; }
+        trL.appendChild(td);
+      }
+    }
+
+    // Right pane: remaining visible columns
+    if (isHdrRow) {
+      for (let ci = FROZEN_COLS; ci < dataCols; ci++) {
+        const absCol = ci + colStart;
+        trR.appendChild(makeTd(colLetter(absCol), colW[ci], true, null));
+      }
+    } else {
+      for (let ci = FROZEN_COLS; ci < dataCols; ci++) {
+        const absCol = ci + colStart;
+        if (skipCells.has(`${absRow},${absCol}`)) continue;
+        const cell = ws[XLSX.utils.encode_cell({ r: absRow, c: absCol })];
+        const td   = makeTd(null, colW[ci], false, cell);
+        const mk   = `${absRow},${absCol}`;
+        if (mergeMap[mk]) { td.rowSpan = mergeMap[mk].rs; td.colSpan = mergeMap[mk].cs; }
+        trR.appendChild(td);
+      }
+    }
+
+    tbodyL.appendChild(trL);
+    tbodyR.appendChild(trR);
+  }
+
+  // Header row → TL + TR (inserted first so we can measure real row height)
+  addRow(tbTL, tbTR, null, true);
+
+  // Measure actual rendered row height — accounts for borders, zoom, browser differences.
+  // getBoundingClientRect() returns the true pixel height after layout.
+  const firstTr = tbTL.querySelector('tr');
+  const measuredRowH = firstTr ? Math.ceil(firstTr.getBoundingClientRect().height) : 24;
+
+  // Update top strip height now that we know the real row height
+  const topH = measuredRowH * (FROZEN_ROWS + 1); // +1 for the col-letter header row
+  gridOuter.style.gridTemplateRows = `${topH}px 1fr`;
+
+  // Frozen visible rows → TL + TR
+  for (let vi = 0; vi < FROZEN_ROWS && vi < dataRows; vi++)
+    addRow(tbTL, tbTR, vi, false);
+
+  // Scrollable visible rows → BL + BR
+  for (let vi = FROZEN_ROWS; vi < dataRows; vi++)
+    addRow(tbBL, tbBR, vi, false);
+}
+
+// ── Load workbook ─────────────────────────────────────
+async function loadWorkbook() {
+  showOverlay('Loading roster…');
+  statusText.textContent = '…';
+  sheetMeta = [];
+
+  try {
+    const res = await fetch(FETCH_URL, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status} — is the file shared publicly?`);
+    const buf = await res.arrayBuffer();
+    const wb  = XLSX.read(buf, { type: 'array', cellDates: false, cellStyles: true });
+    const wbSheets = (wb.Workbook && wb.Workbook.Sheets) || [];
+
+    wb.SheetNames.forEach((name, rawIdx) => {
+      if (HIDDEN_SHEETS.includes(name)) return;
+      const ws  = wb.Sheets[name];
+      const gid = (wbSheets[rawIdx] && wbSheets[rawIdx].sheetId != null)
+                    ? wbSheets[rawIdx].sheetId : rawIdx;
+      const ref   = ws['!ref'] ? XLSX.utils.decode_range(ws['!ref']) : null;
+      const names = [];
+      if (ref) {
+        const rEnd = Math.min(MAX_ROW - 1, ref.e.r);
+        for (let r = NAMES_ROW - 1; r <= rEnd; r++) {
+          const cell = ws[XLSX.utils.encode_cell({ r, c: NAMES_COL_0 })];
+          if (cell && cell.v != null && String(cell.v).trim() !== '')
+            // store visRow (0-based within visible range) so highlightRow works
+            names.push({ name: String(cell.v).trim(), row: r - FIRST_ROW_0 });
+        }
+      }
+      sheetMeta.push({ name, gid, ws, names });
+    });
+
+    sheetSel.innerHTML = '';
+    sheetMeta.forEach((s, i) => {
+      const o = document.createElement('option');
+      o.value = i; o.textContent = s.name;
+      sheetSel.appendChild(o);
+    });
+
+    const saved = parseInt(localStorage.getItem('rv_sheet') ?? '0', 10);
+    currentIdx = (saved >= 0 && saved < sheetMeta.length) ? saved : 0;
+    sheetSel.value = currentIdx;
+    switchSheet(currentIdx);
+    statusText.textContent = `${sheetMeta.length} sheet${sheetMeta.length !== 1 ? 's' : ''} · ${new Date().toLocaleTimeString()}`;
+
+  } catch (err) {
+    console.error('loadWorkbook:', err);
+    showOverlay(err.message, true);
+    statusText.textContent = 'Error';
+  }
+}
+
+// ── Switch sheet ──────────────────────────────────────
+function switchSheet(idx) {
+  if (!sheetMeta.length) return;
+  currentIdx = idx;
+  const s = sheetMeta[idx];
+  if (!s) return;
+
+  localStorage.setItem('rv_sheet', idx);
+  clearSearch();
+
+  nameList.innerHTML = '';
+  const seen = new Set();
+  s.names.forEach(({ name }) => {
+    if (!seen.has(name)) {
+      seen.add(name);
+      const opt = document.createElement('option');
+      opt.value = name; nameList.appendChild(opt);
+    }
+  });
+
+  leftStatus.textContent  = s.name;
+  rightStatus.textContent = `${s.names.length} people`;
+  renderSheet(s.ws);
+  paneBR.scrollTo(0, 0);
+  paneBL.scrollTop = 0;
+  paneTR.scrollLeft = 0;
+  hideOverlay();
+}
+
+// ── Highlight a row across all panes ─────────────────
+function highlightRow(dataRow) {
+  // Clear existing
+  document.querySelectorAll('.pane-table tr.highlighted')
+    .forEach(r => r.classList.remove('highlighted'));
+
+  // dataRow is 0-based. Rows 0..(FROZEN_ROWS-1) are in TL/TR, rest in BL/BR.
+  const selector = `tr[data-row="${dataRow}"]`;
+  document.querySelectorAll(selector).forEach(tr => tr.classList.add('highlighted'));
+
+  // Scroll into view in BR (only needed for non-frozen rows)
+  // Use the actual tr offsetTop rather than a hardcoded row height
+  if (dataRow >= FROZEN_ROWS) {
+    const tr = document.querySelector(`#pane-br tr[data-row="${dataRow}"]`);
+    if (tr) paneBR.scrollTo({ top: tr.offsetTop, behavior: 'smooth' });
+  }
+}
+
+// ── Search ────────────────────────────────────────────
+function doSearch() {
+  const term = nameInput.value.trim().toLowerCase();
+  nameInput.classList.toggle('active', term.length > 0);
+  if (!term) { clearSearch(); return; }
+
+  const s = sheetMeta[currentIdx];
+  if (!s) return;
+
+  const seen = new Set();
+  matches = [];
+  s.names.forEach(entry => {
+    if (!seen.has(entry.name) && entry.name.toLowerCase().includes(term)) {
+      seen.add(entry.name); matches.push(entry);
+    }
+  });
+
+  matchList.innerHTML = '';
+  matchPanel.classList.add('visible');
+
+  if (matches.length === 0) {
+    matchLabel.textContent = 'No match';
+    document.querySelectorAll('.pane-table tr.highlighted').forEach(r => r.classList.remove('highlighted'));
+    return;
+  }
+
+  matchLabel.textContent = `${matches.length} match${matches.length > 1 ? 'es' : ''}:`;
+  matches.forEach((m, i) => {
+    const chip = document.createElement('button');
+    chip.className = 'match-chip';
+    chip.textContent = m.name;
+    chip.addEventListener('click', () => activateMatch(i));
+    matchList.appendChild(chip);
+  });
+
+  activateMatch(0);
+}
+
+function activateMatch(i) {
+  if (i < 0 || i >= matches.length) return;
+  activeMatch = i;
+  matchList.querySelectorAll('.match-chip')
+    .forEach((c, ci) => c.classList.toggle('active', ci === i));
+  const m = matches[i];
+  highlightRow(m.row);
+  leftStatus.textContent = `${sheetMeta[currentIdx].name} — row ${m.row + 1}: ${m.name}`;
+}
+
+function clearSearch() {
+  nameInput.value = '';
+  nameInput.classList.remove('active');
+  matches = []; activeMatch = -1;
+  matchPanel.classList.remove('visible');
+  matchList.innerHTML = '';
+  matchLabel.textContent = 'Matches:';
+  document.querySelectorAll('.pane-table tr.highlighted').forEach(r => r.classList.remove('highlighted'));
+}
+
+// ── Events ────────────────────────────────────────────
+sheetSel.addEventListener('change', () => switchSheet(parseInt(sheetSel.value, 10)));
+nameInput.addEventListener('input', doSearch);
+nameInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); if (matches.length) activateMatch((activeMatch + 1) % matches.length); }
+});
+prevBtn.addEventListener('click', () => { if (matches.length) activateMatch((activeMatch - 1 + matches.length) % matches.length); });
+nextBtn.addEventListener('click', () => { if (matches.length) activateMatch((activeMatch + 1) % matches.length); });
+clearBtn.addEventListener('click', () => { clearSearch(); paneBR.scrollTo(0,0); });
+refreshBtn.addEventListener('click', loadWorkbook);
+
+// ── Service worker ────────────────────────────────────
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+
+loadWorkbook();
+</script>
+</body>
+</html>
