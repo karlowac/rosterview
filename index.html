@@ -207,6 +207,7 @@ const NAMES_ROW     = 15;   // 1-based row where names start
 const NAMES_COL     = 'D';  // column letter with person names
 const FIRST_ROW     = 11;   // skip rows above this (1-based, so rows 1-10 hidden)
 const MAX_ROW       = 40;   // rows beyond this are hidden (1-based)
+const MAX_COL       = 36;   // columns beyond this are hidden (1-based)
 const SKIP_COLS     = 2;    // hide this many columns from the left (A and B)
 const FROZEN_COLS   = 2;    // freeze columns C–D (was A–D; A&B now hidden)
 const FROZEN_ROWS   = 3;    // first 3 visible rows frozen (was 13; rows 1-10 hidden, so rows 11-13)
@@ -333,7 +334,7 @@ function renderSheet(ws) {
   const range    = XLSX.utils.decode_range(ws['!ref']);
   // Visible range: skip first SKIP_COLS columns and first FIRST_ROW_0 rows
   const colStart = SKIP_COLS;
-  const colEnd   = range.e.c + 1;          // exclusive
+  const colEnd   = Math.min(MAX_COL, range.e.c + 1);          // exclusive
   const rowStart = FIRST_ROW_0;
   const rowEnd   = Math.min(MAX_ROW, range.e.r + 1); // exclusive
 
