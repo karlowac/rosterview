@@ -206,7 +206,7 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 <!-- STATUS BAR -->
 <div id="statusbar">
   <span id="left-status">—</span>
-  <span id="version-label">v27</span>
+  <span id="version-label">v28</span>
   <span id="right-status">—</span>
 </div>
 <div id="fileinfo-bar">
@@ -646,6 +646,7 @@ async function loadWorkbook() {
     if (!res.ok) throw new Error(`HTTP ${res.status} — is the file shared publicly?`);
     const buf = await res.arrayBuffer();
     const wb  = XLSX.read(buf, { type: 'array', cellDates: false, cellStyles: true });
+    loadFileDate(buf);
     const wbSheets = (wb.Workbook && wb.Workbook.Sheets) || [];
 
     wb.SheetNames.forEach((name, rawIdx) => {
@@ -827,18 +828,19 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// ── Fetch file last-modified date from Google Drive ──
-async function loadFileDate() {
+// ── Read file modified date from xlsx internal metadata ──
+// xlsx files are zip archives containing core.xml with a <dcterms:modified> tag.
+// This reflects when the file was last saved in Excel — closest to upload time.
+function loadFileDate(buf) {
   const fileDateEl = document.getElementById('file-date');
   try {
-    // Use a HEAD request to the export URL — Google returns Last-Modified header
-    const res = await fetch(
-      `https://docs.google.com/spreadsheets/d/${FILE_ID}/export?format=xlsx`,
-      { method: 'HEAD', cache: 'no-store' }
-    );
-    const lastMod = res.headers.get('Last-Modified') || res.headers.get('Date');
-    if (lastMod) {
-      const d    = new Date(lastMod);
+    // Use JSZip-free approach: scan the buffer for the modified date string
+    // XLSX.read gives us Props which includes ModifiedDate
+    const wb = XLSX.read(buf, { type: 'array', bookProps: true });
+    const props = wb.Props || wb.Custprops || {};
+    const mod = props.ModifiedDate;
+    if (mod) {
+      const d    = new Date(mod);
       const yyyy = d.getFullYear();
       const mm   = String(d.getMonth() + 1).padStart(2, '0');
       const dd   = String(d.getDate()).padStart(2, '0');
@@ -855,7 +857,6 @@ async function loadFileDate() {
 }
 
 loadWorkbook();
-loadFileDate();
 </script>
 </body>
 </html>
