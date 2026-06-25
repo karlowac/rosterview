@@ -99,13 +99,15 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 }
 .pane-table td {
   border: 1px solid #c8c8c8;
-  padding: 3px 8px;
+  padding: 0 8px;
   overflow: hidden;
   text-overflow: ellipsis;
   height: 22px;
+  max-height: 22px;
   line-height: 22px;
   vertical-align: middle;
   background-color: #ffffff;
+  white-space: nowrap;
 }
 
 /* Header cells (row numbers + col letters) */
@@ -194,7 +196,7 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 <!-- STATUS BAR -->
 <div id="statusbar">
   <span id="left-status">—</span>
-  <span id="version-label">v16</span>
+  <span id="version-label">v17</span>
   <span id="right-status">—</span>
 </div>
 
