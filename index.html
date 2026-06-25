@@ -211,7 +211,7 @@ const MAX_COL       = 41;   // hide columns beyond this (AJ = 36)
 const SKIP_COLS     = 2;    // hide this many columns from the left (A and B)
 const FROZEN_COLS   = 2;    // freeze columns C–D
 const FROZEN_ROWS   = 3;    // first 3 visible rows frozen (rows 11-13)
-const NAME_COL_W    = 200;  // forced width (px) for names column
+const NAME_COL_W    = 55;  // forced width (px) for names column
 const ROW_HDR_W     = 36;   // width of the row-number header column
 
 // ── CONDITIONAL FORMATTING RULES ─────────────────────
@@ -463,6 +463,7 @@ function renderSheet(ws) {
           : 80;
     w = Math.max(40, Math.min(w, 300));
     if (c === NAMES_COL_0) w = NAME_COL_W;
+    if (c === 4) w = 15;  // column E (0-based: A=0, B=1, C=2, D=3, E=4)
     colW.push(w);
   }
 
