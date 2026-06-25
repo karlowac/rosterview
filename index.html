@@ -153,6 +153,7 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 /* ── STATUS BAR ──────────────────────────────────────── */
 #statusbar { position: relative; height: 24px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; background: var(--bg); border-top: 1px solid var(--border); flex-shrink: 0; font-family: var(--mono); font-size: 0.62rem; color: var(--text-dim); }
 #version-label { position: absolute; left: 50%; transform: translateX(-50%); font-family: var(--mono); font-size: 0.62rem; color: var(--border); }
+#fileinfo-bar { display: flex; align-items: center; justify-content: center; padding: 0 12px; height: 20px; background: var(--bg); border-top: 1px solid var(--border); flex-shrink: 0; font-family: var(--mono); font-size: 0.58rem; color: var(--text-dim); }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: #f0f0f0; }
@@ -205,8 +206,11 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 <!-- STATUS BAR -->
 <div id="statusbar">
   <span id="left-status">—</span>
-  <span id="version-label">v26</span>
+  <span id="version-label">v27</span>
   <span id="right-status">—</span>
+</div>
+<div id="fileinfo-bar">
+  <span id="file-date">Checking source file…</span>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -823,7 +827,35 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+// ── Fetch file last-modified date from Google Drive ──
+async function loadFileDate() {
+  const fileDateEl = document.getElementById('file-date');
+  try {
+    // Use a HEAD request to the export URL — Google returns Last-Modified header
+    const res = await fetch(
+      `https://docs.google.com/spreadsheets/d/${FILE_ID}/export?format=xlsx`,
+      { method: 'HEAD', cache: 'no-store' }
+    );
+    const lastMod = res.headers.get('Last-Modified') || res.headers.get('Date');
+    if (lastMod) {
+      const d    = new Date(lastMod);
+      const yyyy = d.getFullYear();
+      const mm   = String(d.getMonth() + 1).padStart(2, '0');
+      const dd   = String(d.getDate()).padStart(2, '0');
+      const hh   = String(d.getHours()).padStart(2, '0');
+      const min  = String(d.getMinutes()).padStart(2, '0');
+      const ss   = String(d.getSeconds()).padStart(2, '0');
+      fileDateEl.textContent = `Source Excel file uploaded on ${yyyy}.${mm}.${dd} at ${hh}:${min}:${ss}`;
+    } else {
+      fileDateEl.textContent = 'Upload date unavailable';
+    }
+  } catch (e) {
+    fileDateEl.textContent = 'Upload date unavailable';
+  }
+}
+
 loadWorkbook();
+loadFileDate();
 </script>
 </body>
 </html>
