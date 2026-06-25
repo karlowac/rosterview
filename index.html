@@ -205,7 +205,7 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 <!-- STATUS BAR -->
 <div id="statusbar">
   <span id="left-status">—</span>
-  <span id="version-label">v25</span>
+  <span id="version-label">v24</span>
   <span id="right-status">—</span>
 </div>
 
@@ -614,10 +614,10 @@ function renderSheet(ws) {
   // Measure actual rendered row height — accounts for borders, zoom, browser differences.
   // getBoundingClientRect() returns the true pixel height after layout.
   const firstTr = tbTL.querySelector('tr');
-  const measuredRowH = firstTr ? Math.ceil(firstTr.getBoundingClientRect().height) : 24;
+  window._rowH = firstTr ? Math.ceil(firstTr.getBoundingClientRect().height) : 24;
 
   // Update top strip height now that we know the real row height
-  const topH = measuredRowH * (FROZEN_ROWS + 1); // +1 for the col-letter header row
+  const topH = window._rowH * (FROZEN_ROWS + 1); // +1 for the col-letter header row
   gridOuter.style.gridTemplateRows = `${topH}px 1fr`;
 
   // Frozen visible rows → TL + TR
@@ -732,19 +732,13 @@ function highlightRow(dataRow) {
   const selector = `tr[data-row="${dataRow}"]`;
   document.querySelectorAll(selector).forEach(tr => tr.classList.add('highlighted'));
 
-  // Scroll into view using getBoundingClientRect for cross-browser consistency.
-  // offsetTop is unreliable in Firefox when panes have different geometries.
+  // Scroll to row using pure arithmetic — no DOM queries, identical in all browsers.
+  // visRow within the scrollable area (BL/BR) = dataRow - FROZEN_ROWS
   if (dataRow >= FROZEN_ROWS) {
-    const trBR = document.querySelector(`#pane-br tr[data-row="${dataRow}"]`);
-    const trBL = document.querySelector(`#pane-bl tr[data-row="${dataRow}"]`);
-    if (trBR) {
-      const rowTop = trBR.getBoundingClientRect().top - paneBR.getBoundingClientRect().top;
-      paneBR.scrollTop = paneBR.scrollTop + rowTop;
-    }
-    if (trBL) {
-      const rowTop = trBL.getBoundingClientRect().top - paneBL.getBoundingClientRect().top;
-      paneBL.scrollTop = paneBL.scrollTop + rowTop;
-    }
+    const scrollRow = dataRow - FROZEN_ROWS;
+    const scrollTop = scrollRow * (window._rowH || 23);
+    paneBR.scrollTop = scrollTop;
+    paneBL.scrollTop = scrollTop;
   }
 }
 
