@@ -152,8 +152,8 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 
 /* ── STATUS BAR ──────────────────────────────────────── */
 #statusbar { position: relative; height: 24px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; background: var(--bg); border-top: 1px solid var(--border); flex-shrink: 0; font-family: var(--mono); font-size: 0.62rem; color: var(--text-dim); }
-#version-label { position: absolute; left: 50%; transform: translateX(-50%); font-family: var(--mono); font-size: 0.62rem; color: var(--border); }
-#fileinfo-bar { display: flex; align-items: center; justify-content: center; padding: 0 12px; height: 20px; background: var(--bg); border-top: 1px solid var(--border); flex-shrink: 0; font-family: var(--mono); font-size: 0.58rem; color: var(--text-dim); }
+#file-date { position: absolute; left: 50%; transform: translateX(-50%); font-family: var(--mono); font-size: 0.62rem; color: var(--text-dim); white-space: nowrap; }
+#version-label { font-family: var(--mono); font-size: 0.62rem; color: var(--border); }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: #f0f0f0; }
@@ -206,11 +206,8 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 <!-- STATUS BAR -->
 <div id="statusbar">
   <span id="left-status">—</span>
-  <span id="version-label">v28</span>
-  <span id="right-status">—</span>
-</div>
-<div id="fileinfo-bar">
   <span id="file-date">Checking source file…</span>
+  <span id="version-label">v29</span>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -281,7 +278,6 @@ const matchLabel = document.getElementById('match-label');
 const overlay    = document.getElementById('overlay');
 const overlayMsg = document.getElementById('overlay-msg');
 const leftStatus = document.getElementById('left-status');
-const rightStatus= document.getElementById('right-status');
 const gridOuter  = document.getElementById('grid-outer');
 const paneTL     = document.getElementById('pane-tl');
 const paneTR     = document.getElementById('pane-tr');
@@ -709,7 +705,6 @@ function switchSheet(idx) {
   });
 
   leftStatus.textContent  = s.name;
-  rightStatus.textContent = `${s.names.length} people`;
   renderSheet(s.ws);
   paneBR.scrollTo(0, 0);
   paneBL.scrollTop = 0;
