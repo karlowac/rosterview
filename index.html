@@ -842,7 +842,7 @@ function loadFileDate(buf) {
       const hh   = String(d.getHours()).padStart(2, '0');
       const min  = String(d.getMinutes()).padStart(2, '0');
       const ss   = String(d.getSeconds()).padStart(2, '0');
-      fileDateEl.textContent = `Source Excel file modified on ${yyyy}.${mm}.${dd} at ${hh}:${min}:${ss}`;
+      fileDateEl.textContent = `Source Excel file modified: ${yyyy}.${mm}.${dd} @ ${hh}:${min}:${ss}`;
     } else {
       fileDateEl.textContent = 'Upload date unavailable';
     }
