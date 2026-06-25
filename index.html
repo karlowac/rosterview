@@ -205,7 +205,7 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 <!-- STATUS BAR -->
 <div id="statusbar">
   <span id="left-status">—</span>
-  <span id="version-label">v21</span>
+  <span id="version-label">v22</span>
   <span id="right-status">—</span>
 </div>
 
@@ -732,14 +732,12 @@ function highlightRow(dataRow) {
   const selector = `tr[data-row="${dataRow}"]`;
   document.querySelectorAll(selector).forEach(tr => tr.classList.add('highlighted'));
 
-  // Scroll into view in BR and BL simultaneously (no smooth scroll — avoids sync drift)
+  // Scroll into view — each pane scrolls to its own row's offsetTop
   if (dataRow >= FROZEN_ROWS) {
-    const tr = document.querySelector(`#pane-br tr[data-row="${dataRow}"]`);
-    if (tr) {
-      const top = tr.offsetTop;
-      paneBR.scrollTop = top;
-      paneBL.scrollTop = top;
-    }
+    const trBR = document.querySelector(`#pane-br tr[data-row="${dataRow}"]`);
+    const trBL = document.querySelector(`#pane-bl tr[data-row="${dataRow}"]`);
+    if (trBR) paneBR.scrollTop = trBR.offsetTop;
+    if (trBL) paneBL.scrollTop = trBL.offsetTop;
   }
 }
 
