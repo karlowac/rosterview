@@ -15,7 +15,7 @@
   --bg:       #0d1117;
   --surface:  #161b22;
   --surface2: #21262d;
-  --border:   #c9c9c9c;
+  --border:   #c9c9c9;
   --accent:   #58a6ff;
   --accent2:  #3fb950;
   --text:     #e6edf3;
@@ -205,7 +205,7 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 <!-- STATUS BAR -->
 <div id="statusbar">
   <span id="left-status">—</span>
-  <span id="version-label">v20</span>
+  <span id="version-label">v21</span>
   <span id="right-status">—</span>
 </div>
 
@@ -297,7 +297,9 @@ function hideOverlay() { overlay.classList.add('hidden'); }
 //   - BL follows vertically
 paneBR.addEventListener('scroll', () => {
   paneTR.scrollLeft = paneBR.scrollLeft;
-  paneBL.scrollTop  = paneBR.scrollTop;
+  // Clamp BL scrollTop to its own max to prevent overshoot
+  const blMax = paneBL.scrollHeight - paneBL.clientHeight;
+  paneBL.scrollTop = Math.min(paneBR.scrollTop, blMax);
 }, { passive: true });
 
 // ── Color helpers ─────────────────────────────────────
@@ -730,11 +732,14 @@ function highlightRow(dataRow) {
   const selector = `tr[data-row="${dataRow}"]`;
   document.querySelectorAll(selector).forEach(tr => tr.classList.add('highlighted'));
 
-  // Scroll into view in BR (only needed for non-frozen rows)
-  // Use the actual tr offsetTop rather than a hardcoded row height
+  // Scroll into view in BR and BL simultaneously (no smooth scroll — avoids sync drift)
   if (dataRow >= FROZEN_ROWS) {
     const tr = document.querySelector(`#pane-br tr[data-row="${dataRow}"]`);
-    if (tr) paneBR.scrollTo({ top: tr.offsetTop, behavior: 'smooth' });
+    if (tr) {
+      const top = tr.offsetTop;
+      paneBR.scrollTop = top;
+      paneBL.scrollTop = top;
+    }
   }
 }
 
