@@ -15,7 +15,7 @@
   --bg:       #0d1117;
   --surface:  #161b22;
   --surface2: #21262d;
-  --border:   #C9C9C9;
+  --border:   #c9c9c9;
   --accent:   #58a6ff;
   --accent2:  #3fb950;
   --text:     #e6edf3;
@@ -123,9 +123,12 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 
 /* Highlighted row */
 .pane-table tr.highlighted td {
-  background-color: #e6ffed !important;
-  outline: 2px solid var(--accent2);
-  outline-offset: -1px;
+  border-top: 2px solid var(--accent2) !important;
+  border-bottom: 2px solid var(--accent2) !important;
+}
+/* Left edge marker on first cell of each pane's highlighted row */
+.pane-table tr.highlighted td:first-child {
+  border-left: 4px solid var(--accent2) !important;
 }
 
 /* ── OVERLAY ─────────────────────────────────────────── */
@@ -196,7 +199,7 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 <!-- STATUS BAR -->
 <div id="statusbar">
   <span id="left-status">—</span>
-  <span id="version-label">v17.1</span>
+  <span id="version-label">v18</span>
   <span id="right-status">—</span>
 </div>
 
