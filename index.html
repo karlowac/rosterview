@@ -205,7 +205,7 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 <!-- STATUS BAR -->
 <div id="statusbar">
   <span id="left-status">—</span>
-  <span id="version-label">v23</span>
+  <span id="version-label">v24</span>
   <span id="right-status">—</span>
 </div>
 
@@ -811,7 +811,13 @@ clearBtn.addEventListener('click', () => { clearSearch(); paneBR.scrollTo(0,0); 
 refreshBtn.addEventListener('click', loadWorkbook);
 
 // ── Service worker ────────────────────────────────────
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+// Unregister any previously installed service worker so all users always
+// get the latest version automatically from Cloudflare.
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    regs.forEach(reg => reg.unregister());
+  });
+}
 
 loadWorkbook();
 </script>
