@@ -205,7 +205,7 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 <!-- STATUS BAR -->
 <div id="statusbar">
   <span id="left-status">—</span>
-  <span id="version-label">v24</span>
+  <span id="version-label">v25</span>
   <span id="right-status">—</span>
 </div>
 
@@ -732,12 +732,19 @@ function highlightRow(dataRow) {
   const selector = `tr[data-row="${dataRow}"]`;
   document.querySelectorAll(selector).forEach(tr => tr.classList.add('highlighted'));
 
-  // Scroll into view — each pane scrolls to its own row's offsetTop
+  // Scroll into view using getBoundingClientRect for cross-browser consistency.
+  // offsetTop is unreliable in Firefox when panes have different geometries.
   if (dataRow >= FROZEN_ROWS) {
     const trBR = document.querySelector(`#pane-br tr[data-row="${dataRow}"]`);
     const trBL = document.querySelector(`#pane-bl tr[data-row="${dataRow}"]`);
-    if (trBR) paneBR.scrollTop = trBR.offsetTop;
-    if (trBL) paneBL.scrollTop = trBL.offsetTop;
+    if (trBR) {
+      const rowTop = trBR.getBoundingClientRect().top - paneBR.getBoundingClientRect().top;
+      paneBR.scrollTop = paneBR.scrollTop + rowTop;
+    }
+    if (trBL) {
+      const rowTop = trBL.getBoundingClientRect().top - paneBL.getBoundingClientRect().top;
+      paneBL.scrollTop = paneBL.scrollTop + rowTop;
+    }
   }
 }
 
