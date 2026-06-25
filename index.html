@@ -446,7 +446,7 @@ function renderSheet(ws) {
   const range    = XLSX.utils.decode_range(ws['!ref']);
   // Visible range: skip first SKIP_COLS columns and first FIRST_ROW_0 rows
   const colStart = SKIP_COLS;
-  const colEnd   = range.e.c + 1;          // exclusive
+  const colEnd   = Math.min(MAX_COL, range.e.c + 1);          // exclusive
   const rowStart = FIRST_ROW_0;
   const rowEnd   = Math.min(MAX_ROW, range.e.r + 1); // exclusive
 
@@ -463,7 +463,7 @@ function renderSheet(ws) {
           : 80;
     w = Math.max(40, Math.min(w, 300));
     if (c === NAMES_COL_0) w = NAME_COL_W;
-    if (c === 4) w = 15;  // column E (0-based: A=0, B=1, C=2, D=3, E=4)
+    if (c === 4) w = 50;  // column E (0-based: A=0, B=1, C=2, D=3, E=4)
     colW.push(w);
   }
 
