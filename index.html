@@ -207,11 +207,36 @@ const NAMES_ROW     = 15;   // 1-based row where names start
 const NAMES_COL     = 'D';  // column letter with person names
 const FIRST_ROW     = 11;   // skip rows above this (1-based, so rows 1-10 hidden)
 const MAX_ROW       = 53;   // rows beyond this are hidden (1-based)
+const MAX_COL       = 36;   // hide columns beyond this (AJ = 36)
 const SKIP_COLS     = 2;    // hide this many columns from the left (A and B)
-const FROZEN_COLS   = 2;    // freeze columns C–D (was A–D; A&B now hidden)
-const FROZEN_ROWS   = 3;    // first 3 visible rows frozen (was 13; rows 1-10 hidden, so rows 11-13)
+const FROZEN_COLS   = 2;    // freeze columns C–D
+const FROZEN_ROWS   = 3;    // first 3 visible rows frozen (rows 11-13)
 const NAME_COL_W    = 200;  // forced width (px) for names column
 const ROW_HDR_W     = 36;   // width of the row-number header column
+
+// ── CONDITIONAL FORMATTING RULES ─────────────────────
+// These mirror the Excel conditional formatting rules.
+// Rules are checked top-to-bottom; first match wins for each cell.
+// Each rule has:
+//   type: 'value'  → matches the cell's own value (case-insensitive)
+//         'header' → matches the value in row 13 of the same column
+//   match: string or array of strings to match against
+//   color: background color to apply (hex)
+//
+// To edit: change match values or colors, add/remove rule objects.
+// To disable a rule temporarily: add  disabled: true
+const COND_RULES = [
+  { type: 'value',  match: 'SPE',                                                                           color: '#FFFFCC' },
+  { type: 'value',  match: 'SP',                                                                            color: '#FFFF00' },
+  { type: 'value',  match: ['GO', 'GO12'],                                                                  color: '#92D050' },
+  { type: 'value',  match: 'sGO',                                                                           color: '#99FF99' },
+  { type: 'value',  match: ['RO', 'RO6', 'RO7'],                                                           color: '#C5D9F1' },
+  { type: 'value',  match: ['ŠK','ŠKJ','ŠKJ1','ŠKJ2','ŠKS','ŠKS1','ŠKS2','ŠKS3',
+                             'ŠKP','ŠKP1','ŠKP2','ŠKD','ŠKD9','ŠKN','ŠKN5','ŠKN11'], color: '#FFC000' },
+  { type: 'header', match: 'B',                                                                             color: '#00FFFF' },
+  { type: 'value',  match: ['NBl', 'NBL'],                                                                  color: '#00FFFF' },
+  { type: 'header', match: ['SUB', 'NED'],                                                                  color: '#F2F2F2' },
+];
 // ════════════════════════════════════════════════════
 
 const FETCH_URL   = `https://docs.google.com/spreadsheets/d/${FILE_ID}/export?format=xlsx`;
@@ -343,6 +368,43 @@ function applyStyle(td, cell) {
   const align = s.alignment && s.alignment.horizontal;
   if (align === 'center') td.style.textAlign = 'center';
   else if (align === 'right') td.style.textAlign = 'right';
+}
+
+// ── Conditional formatting evaluator ─────────────────
+// ws: the worksheet, absRow/absCol: absolute 0-based indices
+// headerRow: absolute 0-based index of the header row (row 13 = index 12)
+const HEADER_ROW_0 = 12; // row 13 is 0-based index 12
+
+function applyCond(td, ws, absRow, absCol) {
+  // Get this cell's value (trimmed string, case-insensitive matching done below)
+  const cellAddr = XLSX.utils.encode_cell({ r: absRow, c: absCol });
+  const cell     = ws[cellAddr];
+  const cellVal  = cell && cell.v != null ? String(cell.v).trim() : '';
+
+  // Get the header row value for this column (row 13)
+  const hdrAddr  = XLSX.utils.encode_cell({ r: HEADER_ROW_0, c: absCol });
+  const hdrCell  = ws[hdrAddr];
+  const hdrVal   = hdrCell && hdrCell.v != null ? String(hdrCell.v).trim() : '';
+
+  for (const rule of COND_RULES) {
+    if (rule.disabled) continue;
+
+    const targets = Array.isArray(rule.match) ? rule.match : [rule.match];
+
+    if (rule.type === 'value') {
+      // Match against this cell's value (case-sensitive, matching Excel behaviour)
+      if (targets.some(t => t === cellVal)) {
+        td.style.backgroundColor = rule.color;
+        return; // first match wins
+      }
+    } else if (rule.type === 'header') {
+      // Match against row 13 value of this column
+      if (targets.some(t => t === hdrVal)) {
+        td.style.backgroundColor = rule.color;
+        return;
+      }
+    }
+  }
 }
 
 // ── Column letter helper ───────────────────────────────
@@ -500,6 +562,7 @@ function renderSheet(ws) {
         if (skipCells.has(`${absRow},${absCol}`)) continue;
         const cell = ws[XLSX.utils.encode_cell({ r: absRow, c: absCol })];
         const td   = makeTd(null, colW[ci], false, cell);
+        applyCond(td, ws, absRow, absCol);
         const mk   = `${absRow},${absCol}`;
         if (mergeMap[mk]) { td.rowSpan = mergeMap[mk].rs; td.colSpan = mergeMap[mk].cs; }
         trL.appendChild(td);
@@ -518,6 +581,7 @@ function renderSheet(ws) {
         if (skipCells.has(`${absRow},${absCol}`)) continue;
         const cell = ws[XLSX.utils.encode_cell({ r: absRow, c: absCol })];
         const td   = makeTd(null, colW[ci], false, cell);
+        applyCond(td, ws, absRow, absCol);
         const mk   = `${absRow},${absCol}`;
         if (mergeMap[mk]) { td.rowSpan = mergeMap[mk].rs; td.colSpan = mergeMap[mk].cs; }
         trR.appendChild(td);
