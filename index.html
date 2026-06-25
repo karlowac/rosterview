@@ -83,10 +83,14 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 }
 
 /* Each pane is a scroll container with overflow hidden (except BR) */
+#pane-tl, #pane-tr, #pane-bl, #pane-br { box-sizing: border-box; padding: 0; margin: 0; }
 #pane-tl { grid-column:1; grid-row:1; overflow: hidden; }
 #pane-tr { grid-column:2; grid-row:1; overflow: hidden; scrollbar-gutter: stable; }
-#pane-bl { grid-column:1; grid-row:2; overflow: hidden; scrollbar-gutter: stable; }
-#pane-br { grid-column:2; grid-row:2; overflow: auto; scrollbar-gutter: stable; }
+/* BL uses overflow:scroll so its geometry matches BR exactly,
+   but scrollbars are hidden via ::-webkit-scrollbar and scrollbar-width */
+#pane-bl { grid-column:1; grid-row:2; overflow: scroll; scrollbar-width: none; }
+#pane-bl::-webkit-scrollbar { display: none; }
+#pane-br { grid-column:2; grid-row:2; overflow: scroll; scrollbar-gutter: stable; }
 
 /* All pane tables share the same cell style */
 .pane-table {
@@ -199,7 +203,7 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 <!-- STATUS BAR -->
 <div id="statusbar">
   <span id="left-status">—</span>
-  <span id="version-label">v18</span>
+  <span id="version-label">v19</span>
   <span id="right-status">—</span>
 </div>
 
