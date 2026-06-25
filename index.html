@@ -206,12 +206,11 @@ const HIDDEN_SHEETS = ['_PROCESS_LOG'];
 const NAMES_ROW     = 15;   // 1-based row where names start
 const NAMES_COL     = 'D';  // column letter with person names
 const FIRST_ROW     = 11;   // skip rows above this (1-based, so rows 1-10 hidden)
-const MAX_ROW       = 40;   // rows beyond this are hidden (1-based)
-const MAX_COL       = 36;   // columns beyond this are hidden (1-based)
+const MAX_ROW       = 53;   // rows beyond this are hidden (1-based)
 const SKIP_COLS     = 2;    // hide this many columns from the left (A and B)
 const FROZEN_COLS   = 2;    // freeze columns C–D (was A–D; A&B now hidden)
 const FROZEN_ROWS   = 3;    // first 3 visible rows frozen (was 13; rows 1-10 hidden, so rows 11-13)
-const NAME_COL_W    = 45;  // forced width (px) for names column
+const NAME_COL_W    = 200;  // forced width (px) for names column
 const ROW_HDR_W     = 36;   // width of the row-number header column
 // ════════════════════════════════════════════════════
 
@@ -264,32 +263,83 @@ paneBR.addEventListener('scroll', () => {
 }, { passive: true });
 
 // ── Color helpers ─────────────────────────────────────
-function argbToRgba(argb) {
-  if (!argb || argb.length < 6) return null;
-  const hex = argb.length === 6 ? 'FF' + argb : argb;
-  const a = parseInt(hex.slice(0,2), 16) / 255;
-  const r = parseInt(hex.slice(2,4), 16);
-  const g = parseInt(hex.slice(4,6), 16);
-  const b = parseInt(hex.slice(6,8), 16);
-  if (a < 0.05) return null;
-  if (r > 253 && g > 253 && b > 253) return null;
-  return `rgba(${r},${g},${b},${a})`;
+// Standard Office theme colors (theme index 0-9)
+// These are the base colors before tint/shade is applied
+const THEME_COLORS = [
+  'FFFFFF', '000000', 'E7E6E6', '44546A', '4472C4',
+  'ED7D31', 'A5A5A5', 'FFC000', '5B9BD5', '70AD47'
+];
+
+function themeToRgb(themeIdx, tint) {
+  if (themeIdx == null || themeIdx >= THEME_COLORS.length) return null;
+  let hex = THEME_COLORS[themeIdx];
+  let r = parseInt(hex.slice(0,2), 16);
+  let g = parseInt(hex.slice(2,4), 16);
+  let b = parseInt(hex.slice(4,6), 16);
+  // Apply tint: positive tint lightens, negative darkens
+  if (tint != null && tint !== 0) {
+    if (tint > 0) {
+      r = Math.round(r + (255 - r) * tint);
+      g = Math.round(g + (255 - g) * tint);
+      b = Math.round(b + (255 - b) * tint);
+    } else {
+      r = Math.round(r * (1 + tint));
+      g = Math.round(g * (1 + tint));
+      b = Math.round(b * (1 + tint));
+    }
+  }
+  r = Math.max(0, Math.min(255, r));
+  g = Math.max(0, Math.min(255, g));
+  b = Math.max(0, Math.min(255, b));
+  return `rgb(${r},${g},${b})`;
+}
+
+function resolveColor(colorObj) {
+  if (!colorObj) return null;
+  // Direct RGB value
+  if (colorObj.rgb) {
+    const hex = colorObj.rgb.length === 6 ? 'FF' + colorObj.rgb : colorObj.rgb;
+    const a = parseInt(hex.slice(0,2), 16) / 255;
+    if (a < 0.05) return null;
+    const r = parseInt(hex.slice(2,4), 16);
+    const g = parseInt(hex.slice(4,6), 16);
+    const b = parseInt(hex.slice(6,8), 16);
+    // Skip pure white (no fill)
+    if (r > 253 && g > 253 && b > 253) return null;
+    return `rgba(${r},${g},${b},${a})`;
+  }
+  // Theme color with optional tint
+  if (colorObj.theme != null) {
+    return themeToRgb(colorObj.theme, colorObj.tint || 0);
+  }
+  return null;
 }
 
 function applyStyle(td, cell) {
   if (!cell || !cell.s) return;
   const s = cell.s;
+
+  // Background fill color (try both s.fgColor and s.fill.fgColor)
   const fgColor = s.fgColor || (s.fill && s.fill.fgColor);
-  if (fgColor && fgColor.rgb) {
-    const col = argbToRgba(fgColor.rgb);
+  if (fgColor) {
+    const col = resolveColor(fgColor);
     if (col) td.style.backgroundColor = col;
   }
+
+  // Bold
   if (s.bold || (s.font && s.font.bold)) td.style.fontWeight = 'bold';
+
+  // Font color (try both s.color and s.font.color)
   const fontColor = s.color || (s.font && s.font.color);
-  if (fontColor && fontColor.rgb) {
-    const col = argbToRgba(fontColor.rgb);
-    if (col) td.style.color = col;
+  if (fontColor) {
+    const col = resolveColor(fontColor);
+    // Only apply if not black (black is the default, no need to set it)
+    if (col && col !== 'rgb(0,0,0)' && col !== 'rgba(0,0,0,1)') {
+      td.style.color = col;
+    }
   }
+
+  // Alignment
   const align = s.alignment && s.alignment.horizontal;
   if (align === 'center') td.style.textAlign = 'center';
   else if (align === 'right') td.style.textAlign = 'right';
@@ -334,7 +384,7 @@ function renderSheet(ws) {
   const range    = XLSX.utils.decode_range(ws['!ref']);
   // Visible range: skip first SKIP_COLS columns and first FIRST_ROW_0 rows
   const colStart = SKIP_COLS;
-  const colEnd   = Math.min(MAX_COL, range.e.c + 1);          // exclusive
+  const colEnd   = range.e.c + 1;          // exclusive
   const rowStart = FIRST_ROW_0;
   const rowEnd   = Math.min(MAX_ROW, range.e.r + 1); // exclusive
 
@@ -351,7 +401,6 @@ function renderSheet(ws) {
           : 80;
     w = Math.max(40, Math.min(w, 300));
     if (c === NAMES_COL_0) w = NAME_COL_W;
-    if (c === 4) w = 20;
     colW.push(w);
   }
 
