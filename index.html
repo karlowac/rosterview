@@ -207,7 +207,7 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 <div id="statusbar">
   <span id="left-status">—</span>
   <span id="file-date">Checking source file…</span>
-  <span id="version-label">v29</span>
+  <span id="version-label">v30</span>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -801,6 +801,8 @@ function clearSearch() {
   matchList.innerHTML = '';
   matchLabel.textContent = 'Matches:';
   document.querySelectorAll('.pane-table tr.highlighted').forEach(r => r.classList.remove('highlighted'));
+  // Reset left status to just the sheet name
+  if (sheetMeta[currentIdx]) leftStatus.textContent = sheetMeta[currentIdx].name;
 }
 
 // ── Events ────────────────────────────────────────────
