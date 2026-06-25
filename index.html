@@ -205,7 +205,7 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 <!-- STATUS BAR -->
 <div id="statusbar">
   <span id="left-status">—</span>
-  <span id="version-label">v25</span>
+  <span id="version-label">v26</span>
   <span id="right-status">—</span>
 </div>
 
@@ -295,7 +295,9 @@ function hideOverlay() { overlay.classList.add('hidden'); }
 // BR is the master scroll area. When it scrolls:
 //   - TR follows horizontally
 //   - BL follows vertically
+let _suppressSync = false;
 paneBR.addEventListener('scroll', () => {
+  if (_suppressSync) return;
   paneTR.scrollLeft = paneBR.scrollLeft;
   // Clamp BL scrollTop to its own max to prevent overshoot
   const blMax = paneBL.scrollHeight - paneBL.clientHeight;
@@ -732,13 +734,14 @@ function highlightRow(dataRow) {
   const selector = `tr[data-row="${dataRow}"]`;
   document.querySelectorAll(selector).forEach(tr => tr.classList.add('highlighted'));
 
-  // Scroll to row using pure arithmetic — no DOM queries, identical in all browsers.
-  // visRow within the scrollable area (BL/BR) = dataRow - FROZEN_ROWS
+  // Scroll to row using pure arithmetic — suppress sync listener while setting both panes.
   if (dataRow >= FROZEN_ROWS) {
-    const scrollRow = dataRow - FROZEN_ROWS;
-    const scrollTop = scrollRow * (window._rowH || 23);
+    const scrollTop = (dataRow - FROZEN_ROWS) * (window._rowH || 23);
+    _suppressSync = true;
     paneBR.scrollTop = scrollTop;
     paneBL.scrollTop = scrollTop;
+    // Re-enable after browser has processed the scroll events
+    requestAnimationFrame(() => { _suppressSync = false; });
   }
 }
 
