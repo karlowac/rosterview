@@ -1,4 +1,4 @@
-const CACHE = 'rosterview-v19';
+const CACHE = 'rosterview-v20';
 const ASSETS = [
   './index.html',
   './manifest.json',
