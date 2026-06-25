@@ -15,7 +15,7 @@
   --bg:       #0d1117;
   --surface:  #161b22;
   --surface2: #21262d;
-  --border:   #c9c9c9;
+  --border:   #c9c9c9c;
   --accent:   #58a6ff;
   --accent2:  #3fb950;
   --text:     #e6edf3;
@@ -90,6 +90,8 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
    but scrollbars are hidden via ::-webkit-scrollbar and scrollbar-width */
 #pane-bl { grid-column:1; grid-row:2; overflow: scroll; scrollbar-width: none; }
 #pane-bl::-webkit-scrollbar { display: none; }
+/* Extra space at the bottom of BL so its max scroll matches BR exactly */
+
 #pane-br { grid-column:2; grid-row:2; overflow: scroll; scrollbar-gutter: stable; }
 
 /* All pane tables share the same cell style */
@@ -195,7 +197,7 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
   <!-- TR: frozen rows only -->
   <div id="pane-tr"><table class="pane-table" id="tbl-tr"><tbody></tbody></table></div>
   <!-- BL: frozen cols only -->
-  <div id="pane-bl"><table class="pane-table" id="tbl-bl"><tbody></tbody></table></div>
+  <div id="pane-bl"><table class="pane-table" id="tbl-bl"><tbody></tbody></table><div id="bl-spacer" style="height:0"></div></div>
   <!-- BR: main scroll area -->
   <div id="pane-br"><table class="pane-table" id="tbl-br"><tbody></tbody></table></div>
 </div>
@@ -203,7 +205,7 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 <!-- STATUS BAR -->
 <div id="statusbar">
   <span id="left-status">—</span>
-  <span id="version-label">v19</span>
+  <span id="version-label">v20</span>
   <span id="right-status">—</span>
 </div>
 
@@ -703,6 +705,18 @@ function switchSheet(idx) {
   paneBR.scrollTo(0, 0);
   paneBL.scrollTop = 0;
   paneTR.scrollLeft = 0;
+
+  // Match BL's max scroll to BR's max scroll by adjusting the spacer height.
+  // BR can scroll slightly more than BL due to scrollbar gutter / padding.
+  // We measure the difference and add it as a spacer so both stop at the same point.
+  requestAnimationFrame(() => {
+    const brExtra = paneBR.scrollHeight - paneBR.clientHeight;
+    const blExtra = paneBL.scrollHeight - paneBL.clientHeight;
+    const diff = brExtra - blExtra;
+    const spacer = document.getElementById('bl-spacer');
+    if (spacer) spacer.style.height = Math.max(0, diff) + 'px';
+  });
+
   hideOverlay();
 }
 
