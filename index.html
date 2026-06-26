@@ -207,7 +207,7 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 <div id="statusbar">
   <span id="left-status">—</span>
   <span id="file-date">Checking source file…</span>
-  <span id="version-label">v30</span>
+  <span id="version-label">v31.1</span>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -740,8 +740,9 @@ function highlightRow(dataRow) {
     _suppressSync = true;
     paneBR.scrollTop = scrollTop;
     paneBL.scrollTop = scrollTop;
-    // Re-enable after browser has processed the scroll events
-    requestAnimationFrame(() => { _suppressSync = false; });
+    // setTimeout defers until after all pending scroll events are processed,
+    // more reliable than requestAnimationFrame in Firefox
+    setTimeout(() => { _suppressSync = false; }, 50);
   }
 }
 
