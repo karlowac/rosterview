@@ -281,7 +281,6 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
   <button id="next-btn" class="tb-btn" title="Next match">▼</button>
   <button id="clear-btn" class="tb-btn" title="Clear">✕</button>
   <div class="sep"></div>
-  <button id="refresh-btn" class="tb-btn">⟳ Refresh</button>
   <button id="comments-btn" class="tb-btn" style="color:var(--accent2);border-color:var(--accent2)">💬 Comments</button>
   <span id="status-text">—</span>
 </div>
@@ -312,7 +311,7 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 <div id="statusbar">
   <span id="left-status">—</span>
   <span id="file-date">Checking source file…</span>
-  <span id="version-label">v32</span>
+  <span id="version-label">v33</span>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -375,7 +374,6 @@ const nameList   = document.getElementById('name-list');
 const prevBtn    = document.getElementById('prev-btn');
 const nextBtn    = document.getElementById('next-btn');
 const clearBtn   = document.getElementById('clear-btn');
-const refreshBtn = document.getElementById('refresh-btn');
 const statusText = document.getElementById('status-text');
 const matchPanel = document.getElementById('match-panel');
 const matchList  = document.getElementById('match-list');
@@ -920,7 +918,6 @@ nameInput.addEventListener('keydown', e => {
 prevBtn.addEventListener('click', () => { if (matches.length) activateMatch((activeMatch - 1 + matches.length) % matches.length); });
 nextBtn.addEventListener('click', () => { if (matches.length) activateMatch((activeMatch + 1) % matches.length); });
 clearBtn.addEventListener('click', () => { clearSearch(); paneBR.scrollTo(0,0); });
-refreshBtn.addEventListener('click', loadWorkbook);
 
 // ── Service worker ────────────────────────────────────
 // Unregister any previously installed service worker so all users always
